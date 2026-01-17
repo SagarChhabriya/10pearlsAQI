@@ -37,7 +37,7 @@ models:
     - "random_forest"
     - "ridge_regression"
     - "xgboost"
-    - "neural_network"
+    - "lightgbm"
 
 # Pipeline Configuration
 pipelines:
