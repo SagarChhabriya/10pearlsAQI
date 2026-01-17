@@ -26,21 +26,24 @@ jobs:
       
       - name: Install dependencies
         run: |
-          # IMPORTANT: Do NOT use requirements.txt - it contains heavy packages that cause disk space issues
-          # We install only the minimal dependencies needed for feature pipeline
+          # ====================================================================
+          # IMPORTANT: This workflow does NOT use requirements.txt
+          # requirements.txt contains heavy packages (TensorFlow, PyTorch, etc.)
+          # that cause "No space left on device" errors in GitHub Actions
+          # ====================================================================
           
           python -m pip install --upgrade pip
           # Clean pip cache to save space
           pip cache purge || true
           
           # Install ONLY essential dependencies for feature pipeline
-          echo "Installing core dependencies..."
+          echo "=== Installing core dependencies (NOT from requirements.txt) ==="
           pip install --no-cache-dir pandas>=2.0.0 numpy>=1.24.0 python-dotenv>=1.0.0 pyyaml>=6.0 requests>=2.31.0
           
-          echo "Installing database drivers..."
+          echo "=== Installing database drivers ==="
           pip install --no-cache-dir pymongo>=4.6.0 motor>=3.3.0
           
-          echo "Verifying installation..."
+          echo "=== Verifying installation ==="
           pip list | head -20
       
       - name: Create data directories

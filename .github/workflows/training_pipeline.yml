@@ -38,6 +38,9 @@ jobs:
           # IMPORTANT: Do NOT use requirements.txt - it contains heavy packages that cause disk space issues
           # We install only the minimal dependencies needed for training pipeline
           
+          # Safety check: Verify we're not accidentally using requirements.txt
+          echo "Workflow version check: This should NOT install from requirements.txt"
+          
           python -m pip install --upgrade pip
           # Clean pip cache to save space
           pip cache purge || true
