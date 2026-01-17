@@ -434,7 +434,7 @@ class ModelTrainer:
         """Train ensemble model using voting regressor."""
         logger.info("Training ensemble model (VotingRegressor)...")
         
-        from sklearn.base import is_regressor
+        from sklearn.base import is_regressor, BaseEstimator
         
         # Create voting regressor with best performing models
         estimators = []
@@ -445,24 +445,51 @@ class ModelTrainer:
                 if hasattr(model, '__class__'):
                     class_name = model.__class__.__name__
                     if 'XGB' in class_name or 'XGBoost' in class_name:
-                        if not hasattr(model, '_estimator_type') or model._estimator_type != 'regressor':
+                        # Set _estimator_type on both instance and class if possible
+                        if not hasattr(model, '_estimator_type'):
                             model._estimator_type = 'regressor'
-                            logger.debug(f"Set _estimator_type='regressor' for {name}")
+                        elif model._estimator_type != 'regressor':
+                            model._estimator_type = 'regressor'
+                        # Also try setting on the class
+                        if hasattr(model.__class__, '_estimator_type'):
+                            model.__class__._estimator_type = 'regressor'
+                        logger.info(f"Set _estimator_type='regressor' for {name} (type: {class_name})")
                 
                 # Validate that the model is recognized as a regressor
-                if is_regressor(model):
-                    estimators.append((name, model))
-                else:
-                    logger.warning(f"Skipping {name}: not recognized as a regressor (type: {type(model).__name__})")
+                try:
+                    if is_regressor(model):
+                        estimators.append((name, model))
+                    else:
+                        logger.warning(f"Skipping {name}: not recognized as a regressor (type: {type(model).__name__})")
+                except Exception as e:
+                    logger.warning(f"Error validating {name}: {e}. Skipping.")
         
         if len(estimators) < 2:
             logger.warning(f"Not enough valid regressors for ensemble ({len(estimators)} found). Skipping.")
             return None
         
-        ensemble = VotingRegressor(estimators=estimators, weights=None)
-        ensemble.fit(X_train, y_train)
-        
-        return ensemble
+        # Try to create and fit the ensemble
+        try:
+            ensemble = VotingRegressor(estimators=estimators, weights=None)
+            ensemble.fit(X_train, y_train)
+            return ensemble
+        except ValueError as e:
+            if 'should be a regressor' in str(e):
+                # If XGBoost is causing issues, try without it
+                logger.warning(f"Ensemble creation failed: {e}")
+                logger.info("Attempting to create ensemble without XGBoost...")
+                filtered_estimators = [(name, model) for name, model in estimators 
+                                      if 'XGB' not in type(model).__name__]
+                if len(filtered_estimators) >= 2:
+                    ensemble = VotingRegressor(estimators=filtered_estimators, weights=None)
+                    ensemble.fit(X_train, y_train)
+                    logger.info(f"Created ensemble with {len(filtered_estimators)} models (XGBoost excluded)")
+                    return ensemble
+                else:
+                    logger.error("Cannot create ensemble even without XGBoost. Not enough models.")
+                    return None
+            else:
+                raise
     
     def train_all_models(self, X_train, X_test, y_train, y_test) -> dict:
         """
@@ -498,6 +525,11 @@ class ModelTrainer:
         
         if 'xgboost' in algorithms:
             model = self.train_xgboost(X_train, y_train)
+            # Ensure XGBoost model is recognized as regressor for VotingRegressor
+            if not hasattr(model, '_estimator_type'):
+                model._estimator_type = 'regressor'
+            elif model._estimator_type != 'regressor':
+                model._estimator_type = 'regressor'
             metrics = self.evaluate_model(model, X_test, y_test, X_train, y_train)
             self.models['xgboost'] = model
             base_models['xgboost'] = model
