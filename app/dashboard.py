@@ -94,9 +94,16 @@ def get_predictions(forecast_days: int = 3, latitude: float = None, longitude: f
                 logger.error(f"Error calling prediction API: Request timed out after {max_retries + 1} attempts")
                 return None
         except requests.exceptions.RequestException as e:
-            if attempt < max_retries and "timeout" in str(e).lower():
-                logger.warning(f"Request error (attempt {attempt + 1}/{max_retries + 1}), retrying...")
-                time.sleep(2 ** attempt)
+            # Handle 502 Bad Gateway (Railway cold start or service down)
+            is_502 = hasattr(e, 'response') and e.response is not None and e.response.status_code == 502
+            is_timeout = "timeout" in str(e).lower() or isinstance(e, requests.exceptions.Timeout)
+            
+            if attempt < max_retries and (is_timeout or is_502):
+                wait_time = 2 ** attempt
+                logger.warning(f"Request error (attempt {attempt + 1}/{max_retries + 1}): {str(e)}")
+                if is_502:
+                    logger.info(f"502 Bad Gateway - API may be starting up. Waiting {wait_time}s before retry...")
+                time.sleep(wait_time)
                 continue
             else:
                 logger.error(f"Error calling prediction API: {str(e)}")
@@ -126,9 +133,16 @@ def get_available_models(max_retries: int = 2):
                 logger.error(f"Error getting models: Request timed out after {max_retries + 1} attempts")
                 return None
         except requests.exceptions.RequestException as e:
-            if attempt < max_retries and "timeout" in str(e).lower():
-                logger.warning(f"Request error (attempt {attempt + 1}/{max_retries + 1}), retrying...")
-                time.sleep(2 ** attempt)
+            # Handle 502 Bad Gateway (Railway cold start or service down)
+            is_502 = hasattr(e, 'response') and e.response is not None and e.response.status_code == 502
+            is_timeout = "timeout" in str(e).lower() or isinstance(e, requests.exceptions.Timeout)
+            
+            if attempt < max_retries and (is_timeout or is_502):
+                wait_time = 2 ** attempt
+                logger.warning(f"Request error (attempt {attempt + 1}/{max_retries + 1}): {str(e)}")
+                if is_502:
+                    logger.info(f"502 Bad Gateway - API may be starting up. Waiting {wait_time}s before retry...")
+                time.sleep(wait_time)
                 continue
             else:
                 logger.error(f"Error getting models: {str(e)}")
@@ -324,7 +338,7 @@ def main():
                     showlegend=False
                 )
                 
-                st.plotly_chart(fig, use_container_width=True)
+                st.plotly_chart(fig, width='stretch')
                 
                 # Display predictions table
                 st.subheader("Forecast Details")
@@ -332,7 +346,7 @@ def main():
                 display_df['Predicted AQI'] = display_df['predicted_aqi'].apply(lambda x: f"{x:.0f}" if x else "N/A")
                 display_df = display_df[['date', 'Predicted AQI', 'category']]
                 display_df.columns = ['Date', 'Predicted AQI', 'Category']
-                st.dataframe(display_df, use_container_width=True)
+                st.dataframe(display_df, width='stretch')
                 
                 # Alerts
                 st.subheader("Alerts")

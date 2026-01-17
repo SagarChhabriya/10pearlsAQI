@@ -30,10 +30,19 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# CORS middleware
+# CORS middleware - allow origins from environment or default to all
+import os
+allowed_origins = os.getenv("ALLOWED_ORIGINS", "*").split(",")
+if allowed_origins == ["*"]:
+    # Allow all origins (for development or if not specified)
+    allow_origins_list = ["*"]
+else:
+    # Allow specific origins from environment variable
+    allow_origins_list = [origin.strip() for origin in allowed_origins]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=allow_origins_list,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -45,6 +54,20 @@ feature_engineer = FeatureEngineer()
 data_cleaner = DataCleaner()
 aqi_calculator = EPAAQICalculator()
 data_fetcher = OpenMeteoDataFetcher()
+
+
+@app.on_event("startup")
+async def startup_event():
+    """Initialize services on startup."""
+    try:
+        logger.info("Starting up AQI Prediction API...")
+        # Test MongoDB connection on startup
+        mongodb_store._connect()
+        logger.info("MongoDB connection established")
+        logger.info("API startup complete")
+    except Exception as e:
+        logger.error(f"Error during startup: {str(e)}")
+        # Don't raise - let the app start and handle errors in endpoints
 
 
 class PredictionRequest(BaseModel):
@@ -80,16 +103,23 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    """Health check endpoint."""
+    """Health check endpoint - lightweight for Railway health checks."""
     try:
-        # Test MongoDB connection
-        mongodb_store._connect()
+        # Quick MongoDB connection test (don't raise if it fails, just report)
+        try:
+            mongodb_store._connect()
+            mongodb_status = "connected"
+        except Exception as db_error:
+            mongodb_status = f"disconnected: {str(db_error)}"
+        
         return {
-            "status": "healthy",
-            "mongodb": "connected",
-            "timestamp": datetime.now().isoformat()
+            "status": "healthy" if mongodb_status == "connected" else "degraded",
+            "mongodb": mongodb_status,
+            "timestamp": datetime.now().isoformat(),
+            "service": "AQI Prediction API"
         }
     except Exception as e:
+        logger.error(f"Health check error: {str(e)}")
         return {
             "status": "unhealthy",
             "error": str(e),
