@@ -26,5 +26,5 @@ fastapi>=0.104.0
 uvicorn>=0.24.0
 
 # Utilities
-python-dateutil>=2.8.0
-pytz>=2023.3
+# python-dateutil>=2.8.0  # Not needed - pandas installs it automatically
+# pytz>=2023.3  # Not needed - pandas installs it automatically
