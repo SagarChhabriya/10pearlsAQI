@@ -417,16 +417,24 @@ class MongoDBStore:
             if not all_models:
                 return None, None, None, None
             
-            # Find model with lowest RMSE
+            # Find model with lowest RMSE (excluding invalid RMSE values like 0)
             best_model = None
             best_rmse = float('inf')
             
+            logger.info(f"Evaluating {len(all_models)} models to find best model...")
             for model_doc in all_models:
                 metrics = model_doc.get('metrics', {})
                 rmse = metrics.get('rmse', float('inf'))
-                if rmse < best_rmse:
-                    best_rmse = rmse
-                    best_model = model_doc
+                model_name = model_doc.get('model_name', 'unknown')
+                # Filter out invalid RMSE values (0, None, negative, or non-numeric)
+                if isinstance(rmse, (int, float)) and rmse > 0:
+                    logger.debug(f"Model '{model_name}': RMSE = {rmse:.2f}")
+                    if rmse < best_rmse:
+                        best_rmse = rmse
+                        best_model = model_doc
+                        logger.debug(f"New best model: '{model_name}' with RMSE: {rmse:.2f}")
+                else:
+                    logger.warning(f"Skipping model '{model_name}' with invalid RMSE: {rmse}")
             
             if not best_model:
                 # Fallback to latest if no metrics found

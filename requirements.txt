@@ -16,21 +16,16 @@ scikit-learn>=1.3.0
 xgboost>=2.0.0
 lightgbm>=4.0.0
 
-# Model interpretation (optional - heavy dependencies)
-# Uncomment if needed for local development:
-# shap>=0.42.0
-# lime>=0.2.0
-
 # Web Application
 streamlit>=1.28.0
 fastapi>=0.104.0
-uvicorn>=0.24.0
+uvicorn[standard]>=0.24.0
 
 # Data visualization
 matplotlib>=3.7.0
 seaborn>=0.12.0
 plotly>=5.17.0
 
-
-# PDF reading (for documentation)
-# pdfplumber>=0.11.0
+# Dependencies for pandas
+pytz
+python-dateutil
