@@ -372,32 +372,54 @@ class MongoDBStore:
             return None, None, None, None
     
     def get_latest_model(self):
-        """Get the most recently trained model."""
+        """Get the most recently trained model with valid metrics."""
         if self.db is None:
             logger.error("MongoDB connection not established")
             return None, None, None, None
         
         try:
             collection = self.db[self.models_collection_name]
-            document = collection.find_one(sort=[('trained_at', -1)])
+            # Get all models sorted by trained_at (newest first)
+            all_models = list(collection.find({}, {'model_name': 1, 'metrics': 1, 'trained_at': 1})
+                             .sort('trained_at', -1))
             
-            if not document:
+            if not all_models:
                 return None, None, None, None
             
-            model = pickle.loads(document['model_data'])
-            metrics = document.get('metrics', {})
-            feature_names = document.get('feature_names', [])
-            metadata = document.get('metadata', {})
+            # Find the latest model with valid metrics
+            for model_doc in all_models:
+                metrics = model_doc.get('metrics', {})
+                rmse = metrics.get('rmse', float('inf'))
+                model_name = model_doc.get('model_name', 'unknown')
+                
+                # Only return models with valid RMSE
+                if isinstance(rmse, (int, float)) and rmse > 0:
+                    # Load the full model document
+                    document = collection.find_one({'model_name': model_name})
+                    if not document:
+                        continue
+                    
+                    model = pickle.loads(document['model_data'])
+                    feature_names = document.get('feature_names', [])
+                    metadata = document.get('metadata', {})
+                    metadata['model_name'] = document.get('model_name', 'unknown')
+                    
+                    # Also load scaler and feature selector if available
+                    if 'scaler_data' in document and document['scaler_data']:
+                        scaler = pickle.loads(document['scaler_data'])
+                        metadata['scaler'] = scaler
+                    if 'feature_selector_data' in document and document['feature_selector_data']:
+                        feature_selector = pickle.loads(document['feature_selector_data'])
+                        metadata['feature_selector'] = feature_selector
+                    
+                    logger.info(f"Loaded latest valid model '{metadata.get('model_name')}' with RMSE: {metrics.get('rmse', 'N/A'):.2f}")
+                    return model, metrics, feature_names, metadata
+                else:
+                    logger.warning(f"Skipping latest model '{model_name}' with invalid RMSE: {rmse}")
             
-            # Also load scaler and feature selector if available
-            if 'scaler_data' in document and document['scaler_data']:
-                scaler = pickle.loads(document['scaler_data'])
-                metadata['scaler'] = scaler
-            if 'feature_selector_data' in document and document['feature_selector_data']:
-                feature_selector = pickle.loads(document['feature_selector_data'])
-                metadata['feature_selector'] = feature_selector
-            
-            return model, metrics, feature_names, metadata
+            # If no valid models found, return None
+            logger.error("No models with valid metrics found")
+            return None, None, None, None
             
         except Exception as e:
             logger.error(f"Error loading latest model: {str(e)}")
