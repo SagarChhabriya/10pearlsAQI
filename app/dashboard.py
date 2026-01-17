@@ -7,6 +7,7 @@ import plotly.graph_objects as go
 from datetime import datetime, timedelta
 import requests
 import os
+import time
 from pathlib import Path
 import sys
 import logging
@@ -66,36 +67,73 @@ import requests
 
 
 @st.cache_data(ttl=300)
-def get_predictions(forecast_days: int = 3, latitude: float = None, longitude: float = None):
-    """Get predictions from FastAPI service."""
-    try:
-        url = f"{API_URL}/predict"
-        payload = {
-            "forecast_days": forecast_days
-        }
-        if latitude and longitude:
-            payload["latitude"] = latitude
-            payload["longitude"] = longitude
-        
-        response = requests.post(url, json=payload, timeout=10)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error calling prediction API: {str(e)}")
-        return None
+def get_predictions(forecast_days: int = 3, latitude: float = None, longitude: float = None, max_retries: int = 2):
+    """Get predictions from FastAPI service with retry logic."""
+    url = f"{API_URL}/predict"
+    payload = {
+        "forecast_days": forecast_days
+    }
+    if latitude and longitude:
+        payload["latitude"] = latitude
+        payload["longitude"] = longitude
+    
+    # Retry logic for cold starts and network issues
+    for attempt in range(max_retries + 1):
+        try:
+            # Increase timeout for predictions (model loading can take time)
+            timeout = 60 if attempt == 0 else 90  # Longer timeout on retry
+            response = requests.post(url, json=payload, timeout=timeout)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.Timeout as e:
+            if attempt < max_retries:
+                logger.warning(f"Request timeout (attempt {attempt + 1}/{max_retries + 1}), retrying...")
+                time.sleep(2 ** attempt)  # Exponential backoff: 1s, 2s, 4s
+                continue
+            else:
+                logger.error(f"Error calling prediction API: Request timed out after {max_retries + 1} attempts")
+                return None
+        except requests.exceptions.RequestException as e:
+            if attempt < max_retries and "timeout" in str(e).lower():
+                logger.warning(f"Request error (attempt {attempt + 1}/{max_retries + 1}), retrying...")
+                time.sleep(2 ** attempt)
+                continue
+            else:
+                logger.error(f"Error calling prediction API: {str(e)}")
+                return None
+    return None
 
 
 @st.cache_data(ttl=300)
-def get_available_models():
-    """Get list of available models from API."""
-    try:
-        url = f"{API_URL}/models"
-        response = requests.get(url, timeout=10)
-        response.raise_for_status()
-        return response.json()
-    except requests.exceptions.RequestException as e:
-        logger.error(f"Error getting models: {str(e)}")
-        return None
+def get_available_models(max_retries: int = 2):
+    """Get list of available models from API with retry logic."""
+    url = f"{API_URL}/models"
+    
+    # Retry logic for cold starts
+    for attempt in range(max_retries + 1):
+        try:
+            # Increase timeout for model listing (can take time on cold start)
+            timeout = 30 if attempt == 0 else 45  # Longer timeout on retry
+            response = requests.get(url, timeout=timeout)
+            response.raise_for_status()
+            return response.json()
+        except requests.exceptions.Timeout as e:
+            if attempt < max_retries:
+                logger.warning(f"Request timeout (attempt {attempt + 1}/{max_retries + 1}), retrying...")
+                time.sleep(2 ** attempt)  # Exponential backoff
+                continue
+            else:
+                logger.error(f"Error getting models: Request timed out after {max_retries + 1} attempts")
+                return None
+        except requests.exceptions.RequestException as e:
+            if attempt < max_retries and "timeout" in str(e).lower():
+                logger.warning(f"Request error (attempt {attempt + 1}/{max_retries + 1}), retrying...")
+                time.sleep(2 ** attempt)
+                continue
+            else:
+                logger.error(f"Error getting models: {str(e)}")
+                return None
+    return None
 
 
 def get_aqi_category(aqi: float) -> tuple:
@@ -140,24 +178,32 @@ def main():
         
         st.header("API Status")
         try:
-            health_response = requests.get(f"{API_URL}/health", timeout=5)
+            # Increased timeout for health check (cold starts can be slow)
+            health_response = requests.get(f"{API_URL}/health", timeout=15)
             if health_response.status_code == 200:
                 st.success("API Connected")
             else:
                 st.error("API Unavailable")
+        except requests.exceptions.Timeout:
+            st.warning("API Slow to Respond (may be cold start)")
         except:
             st.error("API Unavailable")
     
-    # Check API connection
+    # Check API connection (with longer timeout for cold starts)
     try:
-        health = requests.get(f"{API_URL}/health", timeout=5)
+        health = requests.get(f"{API_URL}/health", timeout=15)
         if health.status_code != 200:
             st.error("Prediction API is not available. Please ensure the FastAPI service is running.")
-            st.info("Start the API with: `uvicorn api.main:app --host 0.0.0.0 --port 8000`")
+            st.info("If this is a Railway deployment, the API may be starting up (cold start). Try again in a moment.")
             return
-    except:
-        st.error("Cannot connect to Prediction API. Please ensure the FastAPI service is running.")
-        st.info("Start the API with: `uvicorn api.main:app --host 0.0.0.0 --port 8000`")
+    except requests.exceptions.Timeout:
+        st.warning("⚠️ API is slow to respond. This may be a cold start (first request after inactivity).")
+        st.info("💡 **Tip**: Railway apps can take 30-60 seconds to start. Please wait and try again.")
+        st.info("The API will respond faster on subsequent requests.")
+        return
+    except Exception as e:
+        st.error(f"Cannot connect to Prediction API: {str(e)}")
+        st.info("If this is a Railway deployment, check that the API URL is correct and the service is running.")
         return
     
     # Get model info
