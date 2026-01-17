@@ -306,3 +306,17 @@ Jupyter notebooks for exploratory data analysis are in the `notebooks/` director
 ## Project Timeline
 
 Due: Feb 13, 2026 at 6:20 PM
+
+
+https://10pearlsaqi-production.up.railway.app/
+
+
+https://10pearlsaqi-production.up.railway.app/models
+
+- Missed adding env variable to railway
+
+```bash
+{"detail":"localhost:27017: [Errno 111] Connection refused (configured timeouts: socketTimeoutMS: 30000.0ms, connectTimeoutMS: 30000.0ms), Timeout: 30.0s, Topology Description: <TopologyDescription id: 696bd66f41d6f75be94a0229, topology_type: Unknown, servers: [<ServerDescription ('localhost', 27017) server_type: Unknown, rtt: None, error=AutoReconnect('localhost:27017: [Errno 111] Connection refused (configured timeouts: socketTimeoutMS: 30000.0ms, connectTimeoutMS: 30000.0ms)')>]>"}
+```
+
+
