@@ -434,14 +434,29 @@ class ModelTrainer:
         """Train ensemble model using voting regressor."""
         logger.info("Training ensemble model (VotingRegressor)...")
         
+        from sklearn.base import is_regressor
+        
         # Create voting regressor with best performing models
         estimators = []
         for name, model in base_models.items():
             if model is not None:
-                estimators.append((name, model))
+                # Ensure XGBoost models are properly recognized as regressors
+                # Some XGBoost versions need explicit _estimator_type attribute
+                if hasattr(model, '__class__'):
+                    class_name = model.__class__.__name__
+                    if 'XGB' in class_name or 'XGBoost' in class_name:
+                        if not hasattr(model, '_estimator_type') or model._estimator_type != 'regressor':
+                            model._estimator_type = 'regressor'
+                            logger.debug(f"Set _estimator_type='regressor' for {name}")
+                
+                # Validate that the model is recognized as a regressor
+                if is_regressor(model):
+                    estimators.append((name, model))
+                else:
+                    logger.warning(f"Skipping {name}: not recognized as a regressor (type: {type(model).__name__})")
         
         if len(estimators) < 2:
-            logger.warning("Not enough models for ensemble. Skipping.")
+            logger.warning(f"Not enough valid regressors for ensemble ({len(estimators)} found). Skipping.")
             return None
         
         ensemble = VotingRegressor(estimators=estimators, weights=None)
