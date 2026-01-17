@@ -113,10 +113,12 @@ class FeatureEngineer:
             df['wind_direction_sin'] = np.sin(np.radians(df['wind_direction']))
             df['wind_direction_cos'] = np.cos(np.radians(df['wind_direction']))
             # Wind direction categories (N, NE, E, SE, S, SW, W, NW)
+            # Note: ordered=False because wind direction is cyclical (337.5-360 wraps to N, same as 0-22.5)
             df['wind_direction_category'] = pd.cut(
                 df['wind_direction'],
                 bins=[0, 22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5, 360],
-                labels=[0, 1, 2, 3, 4, 5, 6, 7, 0]  # 0 = N, 1 = NE, etc.
+                labels=[0, 1, 2, 3, 4, 5, 6, 7, 0],  # 0 = N, 1 = NE, etc.
+                ordered=False
             ).astype(float)
         
         # Pressure features (if available)
