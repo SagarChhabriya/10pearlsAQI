@@ -35,23 +35,37 @@ jobs:
           XGBOOST_BUILD_TYPE: cpu
           CUDA_VISIBLE_DEVICES: ""
         run: |
+          # IMPORTANT: Do NOT use requirements.txt - it contains heavy packages that cause disk space issues
+          # We install only the minimal dependencies needed for training pipeline
+          
           python -m pip install --upgrade pip
           # Clean pip cache to save space
           pip cache purge || true
+          
           # Free up disk space by removing unnecessary packages if they exist
           pip uninstall -y tensorflow torch gradio streamlit apache-airflow shap lime matplotlib seaborn plotly fastapi uvicorn || true
-          # Install core dependencies with constraints to block heavy packages
-          pip install --no-cache-dir --constraint constraints.txt pandas>=2.0.0 numpy>=1.24.0 python-dotenv>=1.0.0 pyyaml>=6.0 requests>=2.31.0 || pip install --no-cache-dir pandas>=2.0.0 numpy>=1.24.0 python-dotenv>=1.0.0 pyyaml>=6.0 requests>=2.31.0
-          # Install database drivers
-          pip install --no-cache-dir --constraint constraints.txt pymongo>=4.6.0 motor>=3.3.0 || pip install --no-cache-dir pymongo>=4.6.0 motor>=3.3.0
-          # Install scikit-learn (core ML library)
-          pip install --no-cache-dir --constraint constraints.txt scikit-learn>=1.3.0 || pip install --no-cache-dir scikit-learn>=1.3.0
-          # Install XGBoost 1.7.x (CPU-only, no CUDA dependencies) instead of 2.0+
+          
+          # Install ONLY essential packages (one at a time to save space and catch errors early)
+          echo "Installing core dependencies..."
+          pip install --no-cache-dir pandas>=2.0.0 numpy>=1.24.0 python-dotenv>=1.0.0 pyyaml>=6.0 requests>=2.31.0
+          
+          echo "Installing database drivers..."
+          pip install --no-cache-dir pymongo>=4.6.0 motor>=3.3.0
+          
+          echo "Installing scikit-learn..."
+          pip install --no-cache-dir scikit-learn>=1.3.0
+          
+          echo "Installing XGBoost 1.7.x (CPU-only, no CUDA)..."
           pip install --no-cache-dir "xgboost>=1.7.0,<2.0.0"
-          # Install LightGBM (CPU-only by default, no CUDA)
+          
+          echo "Installing LightGBM (CPU-only)..."
           pip install --no-cache-dir lightgbm>=4.0.0
+          
           # Verify what was installed and check for unwanted packages
-          pip list | grep -E "(tensorflow|torch|gradio|streamlit|airflow|shap|lime)" || echo "No unwanted packages found"
+          echo "Verifying installation..."
+          pip list | head -30
+          echo "Checking for unwanted packages..."
+          pip list | grep -E "(tensorflow|torch|gradio|streamlit|airflow|shap|lime)" && echo "WARNING: Unwanted packages found!" || echo "✓ No unwanted packages found"
       
       - name: Check disk space after installation
         run: |
