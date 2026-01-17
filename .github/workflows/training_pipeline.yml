@@ -22,12 +22,27 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.12'
-          cache: 'pip'
+          # No cache - we install minimal packages directly
       
-      - name: Check disk space
+      - name: Check disk space before cleanup
         run: |
+          echo "=== Disk Space Before Cleanup ==="
           df -h
-          echo "Available disk space before installation"
+      
+      - name: Clean disk space
+        run: |
+          echo "=== Cleaning disk space ==="
+          sudo apt-get clean || true
+          sudo rm -rf /var/lib/apt/lists/* || true
+          sudo rm -rf /tmp/* || true
+          rm -rf $HOME/.cache/pip || true
+          rm -rf $HOME/.cache/* || true
+          echo "Disk space cleaned"
+      
+      - name: Check disk space after cleanup
+        run: |
+          echo "=== Disk Space After Cleanup ==="
+          df -h
       
       - name: Verify workflow version
         run: |
@@ -103,8 +118,11 @@ jobs:
       
       - name: Check disk space after installation
         run: |
+          echo "=== Disk Space After Installation ==="
           df -h
-          echo "Available disk space after installation"
+          echo "=== Checking for large files ==="
+          du -sh $HOME/.cache 2>/dev/null || echo "Cache directory not found"
+          du -sh $HOME/tmp 2>/dev/null || echo "Temp directory not found"
       
       - name: Create directories
         run: |
