@@ -84,10 +84,12 @@ jobs:
           
           # Install ONLY essential dependencies for feature pipeline
           echo "=== Installing core dependencies (NOT from requirements.txt) ==="
-          pip install --no-cache-dir --no-build-isolation pandas>=2.0.0 numpy>=1.24.0 python-dotenv>=1.0.0 pyyaml>=6.0 requests>=2.31.0
+          # Install pandas dependencies first (pytz and python-dateutil are required by pandas)
+          pip install --no-cache-dir pytz python-dateutil
+          pip install --no-cache-dir pandas>=2.0.0 numpy>=1.24.0 python-dotenv>=1.0.0 pyyaml>=6.0 requests>=2.31.0
           
           echo "=== Installing database drivers ==="
-          pip install --no-cache-dir --no-build-isolation pymongo>=4.6.0 motor>=3.3.0
+          pip install --no-cache-dir pymongo>=4.6.0 motor>=3.3.0
           
           # Restore setup.py (but NOT requirements.txt - it stays deleted)
           if [ -f setup.py.backup ]; then
