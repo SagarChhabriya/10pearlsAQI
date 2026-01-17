@@ -41,29 +41,37 @@ jobs:
           # that cause "No space left on device" errors in GitHub Actions
           # ====================================================================
           
-          # Explicitly prevent any requirements.txt usage
-          export PIP_REQUIRE_VIRTUALENV=false
+          # Delete requirements.txt to prevent ANY accidental usage
+          if [ -f requirements.txt ]; then
+            rm requirements.txt
+            echo "DELETED requirements.txt to prevent usage"
+          fi
+          
+          # Also prevent setup.py from installing dependencies
+          if [ -f setup.py ]; then
+            mv setup.py setup.py.backup
+            echo "Temporarily disabled setup.py"
+          fi
           
           python -m pip install --upgrade pip
           # Clean pip cache to save space
           pip cache purge || true
           
-          # Remove requirements.txt temporarily to prevent accidental usage
-          if [ -f requirements.txt ]; then
-            mv requirements.txt requirements.txt.backup
-            echo "Temporarily renamed requirements.txt to prevent usage"
-          fi
+          # Set TMPDIR to home directory (more space available)
+          mkdir -p $HOME/tmp
+          export TMPDIR=$HOME/tmp
+          export PIP_TEMP_DIR=$HOME/tmp
           
           # Install ONLY essential dependencies for feature pipeline
           echo "=== Installing core dependencies (NOT from requirements.txt) ==="
-          pip install --no-cache-dir pandas>=2.0.0 numpy>=1.24.0 python-dotenv>=1.0.0 pyyaml>=6.0 requests>=2.31.0
+          pip install --no-cache-dir --no-build-isolation pandas>=2.0.0 numpy>=1.24.0 python-dotenv>=1.0.0 pyyaml>=6.0 requests>=2.31.0
           
           echo "=== Installing database drivers ==="
-          pip install --no-cache-dir pymongo>=4.6.0 motor>=3.3.0
+          pip install --no-cache-dir --no-build-isolation pymongo>=4.6.0 motor>=3.3.0
           
-          # Restore requirements.txt
-          if [ -f requirements.txt.backup ]; then
-            mv requirements.txt.backup requirements.txt
+          # Restore setup.py (but NOT requirements.txt - it stays deleted)
+          if [ -f setup.py.backup ]; then
+            mv setup.py.backup setup.py
           fi
           
           echo "=== Verifying installation ==="
