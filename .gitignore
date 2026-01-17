@@ -30,6 +30,9 @@ ENV/
 .env
 .env.local
 
+# Streamlit secrets (local development)
+.streamlit/secrets.toml
+
 # IDE
 .vscode/
 .idea/
@@ -72,3 +75,7 @@ setup_summary.json
 # Documentation builds
 docs/_build/
 docs/.doctrees/
+
+COMMIT_GUIDE.md
+SUPERVISOR_REPORT.md
+WORKFLOW_MONITORING.md

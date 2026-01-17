@@ -28,8 +28,14 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Get API URL from environment or use default
-API_URL = os.getenv("FASTAPI_URL", "http://localhost:8000")
+# Get API URL from Streamlit secrets or environment variable (fallback)
+# Streamlit secrets are accessed via st.secrets
+try:
+    # Try to get from Streamlit secrets (for Streamlit Cloud)
+    API_URL = st.secrets.get("FASTAPI_URL", "http://localhost:8000")
+except (AttributeError, FileNotFoundError, KeyError):
+    # Fallback to environment variable (for local development)
+    API_URL = os.getenv("FASTAPI_URL", "http://localhost:8000")
 
 # Custom CSS
 st.markdown("""
