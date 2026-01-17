@@ -24,6 +24,15 @@ jobs:
           python-version: '3.12'
           cache: 'pip'
       
+      - name: Verify workflow version
+        run: |
+          echo "=== WORKFLOW VERSION CHECK ==="
+          echo "If you see this message, the updated workflow is running"
+          echo "This workflow does NOT use requirements.txt"
+          if [ -f requirements.txt ]; then
+            echo "WARNING: requirements.txt exists but should NOT be used"
+          fi
+      
       - name: Install dependencies
         run: |
           # ====================================================================
@@ -32,9 +41,18 @@ jobs:
           # that cause "No space left on device" errors in GitHub Actions
           # ====================================================================
           
+          # Explicitly prevent any requirements.txt usage
+          export PIP_REQUIRE_VIRTUALENV=false
+          
           python -m pip install --upgrade pip
           # Clean pip cache to save space
           pip cache purge || true
+          
+          # Remove requirements.txt temporarily to prevent accidental usage
+          if [ -f requirements.txt ]; then
+            mv requirements.txt requirements.txt.backup
+            echo "Temporarily renamed requirements.txt to prevent usage"
+          fi
           
           # Install ONLY essential dependencies for feature pipeline
           echo "=== Installing core dependencies (NOT from requirements.txt) ==="
@@ -43,8 +61,15 @@ jobs:
           echo "=== Installing database drivers ==="
           pip install --no-cache-dir pymongo>=4.6.0 motor>=3.3.0
           
+          # Restore requirements.txt
+          if [ -f requirements.txt.backup ]; then
+            mv requirements.txt.backup requirements.txt
+          fi
+          
           echo "=== Verifying installation ==="
           pip list | head -20
+          echo "=== Checking for unwanted packages ==="
+          pip list | grep -E "(tensorflow|torch|gradio|streamlit|airflow)" && echo "ERROR: Unwanted packages found!" || echo "✓ No unwanted packages"
       
       - name: Create data directories
         run: |
