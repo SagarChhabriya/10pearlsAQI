@@ -1,5 +1,7 @@
 # 10pearlsAQI
 
+https://10pearls-aqi-predictor.streamlit.app/
+
 An end-to-end Air Quality Index (AQI) prediction system using a 100% serverless stack. This project predicts AQI for the next 3 days using machine learning models, automated pipelines, and an interactive dashboard.
 
 Portal: https://shine.10pearls.com/candidate/submissions
