@@ -29,8 +29,10 @@ jobs:
           python -m pip install --upgrade pip
           # Clean pip cache to save space
           pip cache purge || true
-          # Install only essential dependencies for feature pipeline
-          pip install --no-cache-dir pandas>=2.0.0 numpy>=1.24.0 python-dotenv>=1.0.0 pyyaml>=6.0 requests>=2.31.0 pymongo>=4.6.0 motor>=3.3.0
+          # Install only essential dependencies for feature pipeline (no extras)
+          pip install --no-cache-dir --no-deps pandas>=2.0.0 numpy>=1.24.0 python-dotenv>=1.0.0 pyyaml>=6.0 requests>=2.31.0
+          # Install pymongo and motor with minimal dependencies
+          pip install --no-cache-dir pymongo>=4.6.0 motor>=3.3.0
       
       - name: Create data directories
         run: |
