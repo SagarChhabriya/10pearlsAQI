@@ -6,7 +6,6 @@ pyyaml>=6.0
 
 # API clients
 requests>=2.31.0
-openweathermapy>=0.7.0
 
 # Database
 pymongo>=4.6.0
