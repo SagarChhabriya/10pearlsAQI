@@ -113,13 +113,29 @@ class FeatureEngineer:
             df['wind_direction_sin'] = np.sin(np.radians(df['wind_direction']))
             df['wind_direction_cos'] = np.cos(np.radians(df['wind_direction']))
             # Wind direction categories (N, NE, E, SE, S, SW, W, NW)
-            # Note: ordered=False because wind direction is cyclical (337.5-360 wraps to N, same as 0-22.5)
-            df['wind_direction_category'] = pd.cut(
-                df['wind_direction'],
-                bins=[0, 22.5, 67.5, 112.5, 157.5, 202.5, 247.5, 292.5, 337.5, 360],
-                labels=[0, 1, 2, 3, 4, 5, 6, 7, 0],  # 0 = N, 1 = NE, etc.
-                ordered=False
-            ).astype(float)
+            # Handle cyclical nature: 337.5-360° and 0-22.5° both map to North (0)
+            def categorize_wind_direction(angle):
+                """Categorize wind direction into 8 compass directions."""
+                # Normalize to 0-360 range
+                angle = angle % 360
+                if angle < 22.5 or angle >= 337.5:
+                    return 0  # N
+                elif angle < 67.5:
+                    return 1  # NE
+                elif angle < 112.5:
+                    return 2  # E
+                elif angle < 157.5:
+                    return 3  # SE
+                elif angle < 202.5:
+                    return 4  # S
+                elif angle < 247.5:
+                    return 5  # SW
+                elif angle < 292.5:
+                    return 6  # W
+                else:  # 292.5 <= angle < 337.5
+                    return 7  # NW
+            
+            df['wind_direction_category'] = df['wind_direction'].apply(categorize_wind_direction).astype(float)
         
         # Pressure features (if available)
         if 'pressure' in df.columns:
