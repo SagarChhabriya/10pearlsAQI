@@ -241,18 +241,19 @@ def main():
             st.success(f"**Best Model**: {best_model.get('name', 'Unknown')} (RMSE: {best_model.get('metrics', {}).get('rmse', 'N/A'):.2f})")
         
         # Display best model metrics in columns (not latest, but best)
-        col1, col2, col3 = st.columns(3)
+        # col1, col2, col3 = st.columns(3)
+        col1, col3 = st.columns(2)
         with col1:
             if best_model:
                 st.metric("Best Model", best_model.get('name', 'Unknown'))
             else:
                 st.metric("Best Model", "N/A")
-        with col2:
-            if best_model and best_model.get('metrics'):
-                r2 = best_model['metrics'].get('r2', 0)
-                st.metric("R² Score", f"{r2:.3f}" if isinstance(r2, (int, float)) else "N/A")
-            else:
-                st.metric("R² Score", "N/A")
+        # with col2:
+        #     if best_model and best_model.get('metrics'):
+        #         r2 = best_model['metrics'].get('r2', 0)
+        #         st.metric("R² Score", f"{r2:.3f}" if isinstance(r2, (int, float)) else "N/A")
+        #     else:
+        #         st.metric("R² Score", "N/A")
         with col3:
             if best_model and best_model.get('metrics'):
                 rmse = best_model['metrics'].get('rmse', 0)
